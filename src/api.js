@@ -91,6 +91,14 @@ export const deleteUser = (id) =>
 export const updateUserCampaign = (id, campaign) =>
   request(`/users/${id}/campaign`, { method: 'PUT', body: { campaign } });
 
+// Full user update (name, username, role, campaign string)
+export const updateUser = (id, data) =>
+  request(`/users/${id}`, { method: 'PUT', body: data });
+
+// Assign user to a campaign + optional bucket (ids from campaigns-config)
+export const updateUserAssignment = (id, campaign_id, bucket_id = null) =>
+  request(`/users/${id}/assignment`, { method: 'PUT', body: { campaign_id, bucket_id } });
+
 export const changePassword = (id, password) =>
   request(`/users/${id}/password`, { method: 'PUT', body: { password } });
 

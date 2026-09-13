@@ -34,7 +34,7 @@ export class CampaignsPage {
 
   render() {
     const sidebarItems = [
-      { label: 'Daily Tracker', path: '/dashboard', active: false, icon: this.icon('grid') },
+      { label: 'PTP Backtrack', path: '/dashboard', active: false, icon: this.icon('grid') },
       { label: 'Campaigns & Columns', path: '/campaigns', active: true, icon: this.icon('tag') },
       { label: 'Users & Agents', path: '/admin', active: false, icon: this.icon('users') },
     ];
@@ -43,19 +43,25 @@ export class CampaignsPage {
 
     const mainContent = `
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="mb-2">
-          <p class="text-xs font-bold tracking-widest text-indigo-500 uppercase">Admin</p>
-          <h2 class="text-3xl font-extrabold text-gray-900">Campaigns &amp; Columns</h2>
-          <p class="text-gray-500 mt-1">Define the tracker table columns and manage campaigns, buckets, and agents.</p>
+        <div class="flex items-center gap-4 mb-6">
+          <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 flex-shrink-0">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+          </div>
+          <div>
+            <p class="text-xs font-bold tracking-widest text-indigo-500 uppercase">Admin</p>
+            <h2 class="text-2xl font-bold text-gray-900 tracking-tight">Campaigns &amp; Columns</h2>
+            <p class="text-gray-500 text-sm mt-0.5">Define the tracker table columns and manage campaigns, buckets, and agents.</p>
+          </div>
         </div>
 
         <!-- Table Columns (global) -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mt-6">
+        <div class="bg-white rounded-2xl shadow-soft border border-gray-100 p-5 mt-6 relative overflow-hidden">
+          <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 to-blue-500"></div>
           <div class="flex items-center gap-2 mb-1">
             <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             <h3 class="text-lg font-bold text-gray-900">Table Columns</h3>
           </div>
-          <p class="text-sm text-gray-400 mb-4">These columns appear in the Daily Tracker and Confirmed Tracker tables. Every field in a record is defined here.</p>
+          <p class="text-sm text-gray-400 mb-4">These columns appear in the PTP Backtrack and Confirmed Tracker tables. Every field in a record is defined here.</p>
 
           <div class="space-y-2 mb-4" id="columnList">
             <div class="text-sm text-gray-400">Loading columns…</div>
@@ -71,13 +77,13 @@ export class CampaignsPage {
             </select>
             <select class="new-col-applies text-sm border-2 border-gray-200 rounded-xl px-2 py-2 text-gray-600 focus:outline-none">
               <option value="both" selected>Both tables</option>
-              <option value="ptp">Daily Tracker only</option>
+              <option value="ptp">PTP Backtrack only</option>
               <option value="confirmed">Confirmed only</option>
             </select>
             <label class="inline-flex items-center gap-1.5 text-sm text-gray-600">
               <input type="checkbox" class="new-col-required accent-indigo-500" /> Required
             </label>
-            <button class="add-col-btn h-10 px-5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition-colors">+ Add Column</button>
+            <button class="add-col-btn h-10 px-5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold transition-all shadow-lg shadow-indigo-500/30">+ Add Column</button>
           </div>
         </div>
 
@@ -85,14 +91,14 @@ export class CampaignsPage {
         <div class="flex justify-end items-center gap-2 mb-4 mt-8">
           <input type="text" id="newCampaignName" placeholder="New campaign name"
             class="px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors w-64" />
-          <button id="addCampaignBtn" class="inline-flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-md shadow-indigo-200">
+          <button id="addCampaignBtn" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/30">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
             Add
           </button>
         </div>
 
         <div id="campaignList" class="space-y-4">
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-500">Loading campaigns…</div>
+          <div class="bg-white rounded-2xl shadow-soft border border-gray-100 p-12 text-center text-gray-500">Loading campaigns…</div>
         </div>
       </div>
 
@@ -502,10 +508,10 @@ export class CampaignsPage {
       const expanded = this.expandedId === camp.id;
       const isRenaming = this.renamingId === camp.id;
       return `
-      <div class="campaign-card bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden" data-id="${camp.id}">
-        <div class="expand-toggle flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors">
+      <div class="campaign-card bg-white rounded-2xl shadow-soft border border-gray-100 overflow-hidden" data-id="${camp.id}">
+        <div class="expand-toggle flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-indigo-50/40 transition-colors">
           <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold flex items-center justify-center flex-shrink-0">${idx + 1}</div>
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-200">${idx + 1}</div>
             <div class="flex-1 min-w-0">
               ${isRenaming
                 ? `<input type="text" class="campaign-rename-input w-full text-lg font-bold text-gray-900 bg-gray-50 border-2 border-indigo-300 rounded-lg px-2 py-0.5 focus:outline-none focus:border-indigo-500" value="${camp.name}" data-campaign-id="${camp.id}" />`

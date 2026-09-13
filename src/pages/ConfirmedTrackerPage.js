@@ -1,5 +1,5 @@
 import { getRecords, createRecord, updateRecord, deleteRecord, logout } from '../api.js';
-import { loadTableColumns, columnsForTable, columnWithRole, inputForColumn, readColumnInput, parseValue, escapeAttr } from '../dynamic-columns.js';
+import { loadTableColumns, columnsForTable, columnWithRole, inputForColumn, readColumnInput, parseValue, formatValue, bindDatePickers, escapeAttr } from '../dynamic-columns.js';
 import { Layout } from '../layout.js';
 
 export class ConfirmedTrackerPage {
@@ -17,7 +17,7 @@ export class ConfirmedTrackerPage {
     const isAdmin = user.role === 'admin';
 
     const sidebarItems = [
-      { label: 'Daily Tracker', path: '/dashboard', active: false, icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>' },
+      { label: 'PTP Backtrack', path: '/dashboard', active: false, icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>' },
       { label: 'Confirmed Tracker', path: '/confirmed', active: true, icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
       ...(isAdmin ? [
         { label: 'Campaigns & Columns', path: '/campaigns', active: false, icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>' },
@@ -28,14 +28,19 @@ export class ConfirmedTrackerPage {
     const layout = new Layout(this.app, sidebarItems);
 
     const mainContent = `
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="w-full px-4 sm:px-6 lg:px-8 py-8">
         <!-- Header -->
-        <div class="flex justify-between items-center mb-6">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-800">Confirmed Payments</h2>
-            <p class="text-gray-500 mt-1">Monitor confirmed account payments</p>
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200 flex-shrink-0">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold text-gray-900 tracking-tight">Confirmed Payments</h2>
+              <p class="text-gray-500 text-sm mt-0.5">Monitor confirmed account payments</p>
+            </div>
           </div>
-          <button id="addRecordBtn" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-3 rounded-xl transition-colors shadow-lg shadow-emerald-200">
+          <button id="addRecordBtn" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/40">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
@@ -45,36 +50,39 @@ export class ConfirmedTrackerPage {
 
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div class="bg-white rounded-2xl shadow-soft border border-gray-100 p-5 relative overflow-hidden">
+            <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            <div class="flex items-center gap-4">
+              <div class="w-11 h-11 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               </div>
               <div>
-                <p class="text-sm text-gray-500">Total Confirmed</p>
-                <p id="totalRecords" class="text-2xl font-bold text-gray-800">0</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Confirmed</p>
+                <p id="totalRecords" class="text-2xl font-bold text-gray-900 mt-0.5">0</p>
               </div>
             </div>
           </div>
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div class="bg-white rounded-2xl shadow-soft border border-gray-100 p-5 relative overflow-hidden">
+            <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-green-500 to-emerald-500"></div>
+            <div class="flex items-center gap-4">
+              <div class="w-11 h-11 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-200">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               </div>
               <div>
-                <p class="text-sm text-gray-500">Total Amount</p>
-                <p id="totalAmount" class="text-2xl font-bold text-gray-800">₱0.00</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Amount</p>
+                <p id="totalAmount" class="text-2xl font-bold text-gray-900 mt-0.5">₱0.00</p>
               </div>
             </div>
           </div>
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <div class="bg-white rounded-2xl shadow-soft border border-gray-100 p-5 relative overflow-hidden">
+            <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-teal-500 to-cyan-500"></div>
+            <div class="flex items-center gap-4">
+              <div class="w-11 h-11 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg shadow-teal-200">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </div>
               <div>
-                <p class="text-sm text-gray-500">Today's Confirmed</p>
-                <p id="todayCount" class="text-2xl font-bold text-gray-800">0</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Today's Confirmed</p>
+                <p id="todayCount" class="text-2xl font-bold text-gray-900 mt-0.5">0</p>
               </div>
             </div>
           </div>
@@ -96,15 +104,15 @@ export class ConfirmedTrackerPage {
           <div class="relative">
             <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             <input type="text" id="searchInput"
-              class="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:outline-none transition-colors"
+              class="w-full pl-10 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl shadow-sm focus:border-emerald-500 focus:outline-none transition-colors"
               placeholder="Search confirmed records..." />
           </div>
         </div>
 
         <!-- Records Table -->
-        <div id="allRecordsTable" class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div id="allRecordsTable" class="bg-white rounded-2xl shadow-soft border border-gray-100 overflow-hidden">
           <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="w-full table-fixed">
               <thead>
                 <tr id="tableHeaderRow" class="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200"></tr>
               </thead>
@@ -130,7 +138,7 @@ export class ConfirmedTrackerPage {
             <div id="formError" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm"></div>
             <div class="flex gap-3 pt-2">
               <button type="button" id="cancelBtn" class="flex-1 px-4 py-3 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>
-              <button type="submit" id="submitBtn" class="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors">Save Record</button>
+              <button type="submit" id="submitBtn" class="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-emerald-500/30">Save Record</button>
             </div>
           </form>
         </div>
@@ -186,7 +194,11 @@ export class ConfirmedTrackerPage {
   renderCampaignFilters(container) {
     const wrap = container.querySelector('#campaignFilterButtons');
     if (!wrap) return;
-    const campaigns = [...new Set(this.records.map((r) => r.campaign).filter(Boolean))].sort();
+    // Always show all 4 campaigns, plus any other campaigns found in records
+    const base = ['Revi Credit', 'Personal Loan', 'GCredit', 'LazPay'];
+    const extra = [...new Set(this.records.map((r) => r.campaign).filter(Boolean))]
+      .filter((c) => !base.some((b) => c === b || c.startsWith(b + ' - ')));
+    const campaigns = [...base, ...extra].sort();
     wrap.innerHTML = `
       <button class="campaign-filter-btn px-5 py-2 rounded-full font-semibold text-sm transition-all" data-campaign="all" style="background: #eef2f6; color: #1e293b;">All Campaigns</button>
       ${campaigns.map((c) => `<button class="campaign-filter-btn px-5 py-2 rounded-full font-semibold text-sm transition-all" data-campaign="${escapeAttr(c)}" style="background: #eef2f6; color: #1e293b;">${c}</button>`).join('')}
@@ -198,12 +210,13 @@ export class ConfirmedTrackerPage {
     const campaignBadge = container.querySelector('#userCampaignBadge');
     const campaignNameEl = container.querySelector('#userCampaignName');
 
+    // Agents: scoped to their assigned campaign (enforced server-side) —
+    // show their campaign badge instead of the filter chips.
     if (user.role !== 'admin' && user.campaign) {
       filterContainer.classList.add('hidden');
       campaignBadge.classList.remove('hidden');
       const baseCampaign = user.campaign.includes(' - ') ? user.campaign.split(' - ')[0] : user.campaign;
       campaignNameEl.textContent = baseCampaign;
-      this.applyCampaignFilter(container, baseCampaign);
     } else {
       filterContainer.classList.remove('hidden');
       campaignBadge.classList.add('hidden');
@@ -229,12 +242,28 @@ export class ConfirmedTrackerPage {
   renderHeader(container) {
     const row = container.querySelector('#tableHeaderRow');
     if (!row) return;
+    const isAdmin = this.app.currentUser?.role === 'admin';
+
+    const th = (content, extra = '') =>
+      `<th class="px-3 py-3 text-left ${extra} text-xs font-bold text-gray-600 uppercase tracking-wider whitespace-nowrap overflow-hidden" title="${content.replace(/<[^>]+>/g, '').trim()}"><span class="th-label inline-block">${content}</span></th>`;
+
     row.innerHTML = `
-      <th class="px-4 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-12">#</th>
-      <th class="px-4 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider min-w-[140px]">Campaign</th>
-      ${this.columns.map((col) => `<th class="px-4 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider min-w-[110px]" title="${escapeAttr(col.role ? `Role: ${col.role}` : col.name)}">${col.name}${col.required ? ' <span class="text-red-400">*</span>' : ''}</th>`).join('')}
-      <th class="px-4 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-28">Actions</th>
+      ${th('Agent')}
+      ${th('Campaign')}
+      ${this.columns.map((col) => th(`${col.name}${col.required ? ' <span class="text-red-400">*</span>' : ''}`)).join('')}
+      ${isAdmin ? th('Actions', 'text-center') : ''}
     `;
+
+    // Measure each header's real text width and size every column exactly to
+    // fit its label (proportional), so no header text is ever cut off.
+    const ths = Array.from(row.children);
+    const widths = ths.map((el) => {
+      const label = el.querySelector('.th-label');
+      // + padding + buffer, with a 120px floor so cell data always has room
+      return Math.max((label ? label.getBoundingClientRect().width : el.scrollWidth) + 36, 120);
+    });
+    const total = widths.reduce((a, b) => a + b, 0) || 1;
+    ths.forEach((el, i) => { el.style.width = `${((widths[i] / total) * 100).toFixed(2)}%`; });
   }
 
   cellForRecord(record, col) {
@@ -242,11 +271,11 @@ export class ConfirmedTrackerPage {
     const isRole = col.role === 'agent' || col.role === 'date';
     const align = col.type === 'amount' || col.type === 'number' ? 'text-right' : 'text-left';
     return `
-      <td class="px-4 py-3 ${align}">
+      <td class="px-3 py-2 ${align}">
         ${isRole
-          ? `<span class="text-sm text-gray-800">${raw ?? '—'}</span>`
-          : `<input type="${col.type === 'number' || col.type === 'amount' ? 'number' : col.type === 'date' ? 'date' : 'text'}" step="any"
-              class="cell-input w-full min-w-[90px] text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 focus:border-emerald-400 focus:outline-none ${col.type === 'amount' || col.type === 'number' ? 'text-right' : ''}"
+          ? formatValue(col, raw)
+          : `<input type="${col.type === 'number' || col.type === 'amount' ? 'number' : 'text'}" step="any"
+              class="cell-input w-full text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 focus:border-emerald-400 focus:outline-none ${col.type === 'amount' || col.type === 'number' ? 'text-right' : ''}"
               data-record-id="${record.id}" data-col-id="${col.id}" value="${escapeAttr(raw ?? '')}" placeholder="—" />`}
       </td>`;
   }
@@ -281,19 +310,26 @@ export class ConfirmedTrackerPage {
       return;
     }
 
-    tbody.innerHTML = visible.map((record, index) => `
+    const isAdmin = this.app.currentUser?.role === 'admin';
+    tbody.innerHTML = visible.map((record) => `
       <tr class="hover:bg-emerald-50/50 transition-colors">
-        <td class="px-4 py-3 text-sm text-gray-500 text-center font-medium">${index + 1}</td>
-        <td class="px-4 py-3">
+        <td class="px-3 py-2">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">${(record.created_by_name || '?').charAt(0).toUpperCase()}</span>
+            <span class="text-sm text-gray-700 font-medium break-words" title="${escapeAttr(record.created_by_name || 'Unknown')}">${record.created_by_name || 'Unknown'}</span>
+          </div>
+        </td>
+        <td class="px-3 py-2">
           <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">${record.campaign || '—'}</span>
         </td>
         ${this.columns.map((col) => this.cellForRecord(record, col)).join('')}
-        <td class="px-4 py-3">
+        ${isAdmin ? `
+        <td class="px-3 py-2">
           <div class="flex gap-1.5 justify-center">
             <button class="edit-btn px-2.5 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all font-medium text-xs" data-id="${record.id}">Edit</button>
             <button class="delete-btn px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all font-medium text-xs" data-id="${record.id}">Delete</button>
           </div>
-        </td>
+        </td>` : ''}
       </tr>
     `).join('');
 
@@ -350,7 +386,19 @@ export class ConfirmedTrackerPage {
     const user = this.app.currentUser;
     const fieldsEl = container.querySelector('#dynamicFields');
 
-    const campaignField = `
+    // Agents with an assigned campaign: show it automatically (no dropdown)
+    const campaignLocked = user.role !== 'admin' && !!user.campaign;
+    const campaignField = campaignLocked ? `
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Campaign *</label>
+        <input type="hidden" id="rec_campaign" value="${escapeAttr(user.campaign)}" />
+        <div class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl bg-gray-50 flex items-center justify-between gap-2 text-left">
+          <span class="text-gray-800 font-medium">${user.campaign}</span>
+          <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+      </div>` : `
       <div>
         <label class="block text-sm font-semibold text-gray-700 mb-1">Campaign *</label>
         <select id="rec_campaign" required class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:outline-none transition-colors">
@@ -359,17 +407,19 @@ export class ConfirmedTrackerPage {
         </select>
       </div>`;
 
+    const today = new Date().toLocaleDateString('sv-SE'); // local YYYY-MM-DD
+
     const colFields = this.columns.map((col) => {
-      const raw = record ? (record.values || {})[col.id] ?? '' : '';
-      let field = inputForColumn(col, escapeAttr(raw), record ? '_edit' : '');
-      if (col.role === 'agent' && !record) {
-        field = field.replace('<input ', `<input value="${escapeAttr(user.full_name)}" readonly `);
-        field = field.replace('class="', 'class="bg-gray-50 ');
-      }
-      return field;
+      let raw = record ? (record.values || {})[col.id] ?? '' : '';
+      // Auto-fill: agent name and entry date for new records
+      if (!record && col.role === 'agent') raw = user.full_name;
+      if (!record && col.role === 'date') raw = today;
+      const locked = !record && (col.role === 'agent' || col.role === 'date');
+      return inputForColumn(col, escapeAttr(raw), record ? '_edit' : '', locked);
     }).join('');
 
     fieldsEl.innerHTML = campaignField + colFields;
+    bindDatePickers(fieldsEl);
 
     container.querySelector('#modalTitle').textContent = record ? 'Edit Confirmed Record' : 'Add Confirmed Record';
     container.querySelector('#submitBtn').textContent = record ? 'Update Record' : 'Save Record';

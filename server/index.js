@@ -225,6 +225,7 @@ function attachValues(db, records) {
 }
 
 function canAccessCampaign(user, campaign) {
+  // Agents only see records for their assigned campaign (admins see all).
   if (!campaign) return true; // records without campaign are visible to all
   if (user.role === 'admin' || !user.campaign) return true;
   const baseOf = (c) => (c.includes(' - ') ? c.split(' - ')[0] : c);
@@ -282,12 +283,25 @@ app.post('/api/records/:type', requireAuth, (req, res) => {
     if (type !== 'ptp' && type !== 'confirmed') {
       return res.status(400).json({ error: 'Invalid record type' });
     }
-    const { campaign, values } = req.body;
+    const { campaign, values: bodyValues } = req.body;
+    let values = bodyValues || {};
     if (campaign && !canAccessCampaign(req.session.user, campaign)) {
       return res.status(403).json({ error: 'You can only create records for your assigned campaign' });
     }
+    (void) campaign;
 
     const db = getDatabase();
+
+    // Auto-stamp the "date" role column (entry date) with the server's local date
+    const dateRoleCol = db.exec("SELECT id FROM global_columns WHERE role = 'date' AND (applies_to = 'both' OR applies_to = ?)", [type]);
+    if (dateRoleCol.length && dateRoleCol[0].values.length > 0) {
+      const dateColId = String(dateRoleCol[0].values[0][0]);
+      const current = values?.[dateColId];
+      if (current === undefined || current === null || String(current).trim() === '') {
+        values = values || {};
+        values[dateColId] = new Date().toLocaleDateString('sv-SE'); // local YYYY-MM-DD
+      }
+    }
 
     // Enforce required columns
     const reqCols = db.exec("SELECT id, name FROM global_columns WHERE required = 1 AND (applies_to = 'both' OR applies_to = ?)", [type]);
@@ -344,8 +358,8 @@ app.put('/api/records/:type/:id', requireAuth, (req, res) => {
   }
 });
 
-// Delete a record
-app.delete('/api/records/:type/:id', requireAuth, (req, res) => {
+// Delete a record (admin only — agents cannot delete rows)
+app.delete('/api/records/:type/:id', requireAdmin, (req, res) => {
   try {
     const type = req.params.type;
     if (type !== 'ptp' && type !== 'confirmed') {
@@ -380,6 +394,50 @@ app.get('/api/users', requireAdmin, (req, res) => {
     res.json({ users });
   } catch (error) {
     console.error('Get users error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get users assigned to a campaign (matches base campaign, e.g. "Revi Credit"
+// or any "Revi Credit - <bucket>" variant)
+app.get('/api/campaign/:name/users', requireAuth, (req, res) => {
+  try {
+    const name = req.params.name;
+    const base = name.includes(' - ') ? name.split(' - ')[0] : name;
+    const db = getDatabase();
+
+    let result;
+    if (name.includes(' - ')) {
+      // Bucket variant: users assigned to the base campaign with that bucket
+      const bucketName = name.slice(name.indexOf(' - ') + 3);
+      result = db.exec(
+        `SELECT u.id, u.username, u.role, u.full_name, u.campaign
+         FROM users u
+         JOIN campaign_assignments a ON a.user_id = u.id
+         JOIN campaign_config c ON a.campaign_id = c.id
+         LEFT JOIN campaign_buckets b ON a.bucket_id = b.id
+         WHERE c.name = ? AND b.name = ?
+         ORDER BY u.full_name`,
+        [base, bucketName]
+      );
+    } else {
+      result = db.exec(
+        "SELECT id, username, role, full_name, campaign FROM users WHERE campaign = ? OR campaign LIKE ? ORDER BY full_name",
+        [name, base + ' - %']
+      );
+    }
+
+    const columns = result.length ? result[0].columns : [];
+    const users = result.length
+      ? result[0].values.map(row => {
+          const obj = {};
+          columns.forEach((col, i) => (obj[col] = row[i]));
+          return obj;
+        })
+      : [];
+    res.json({ users });
+  } catch (error) {
+    console.error('Get campaign users error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -435,6 +493,99 @@ app.put('/api/users/:id/campaign', requireAdmin, (req, res) => {
     res.json({ message: 'Campaign updated successfully' });
   } catch (error) {
     console.error('Update campaign error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Full user update (name, username, role, campaign)
+app.put('/api/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { full_name, username, role, campaign } = req.body;
+    const db = getDatabase();
+
+    const existing = db.exec("SELECT id FROM users WHERE id = ?", [id]);
+    if (!existing.length || existing[0].values.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (!full_name || !full_name.trim()) return res.status(400).json({ error: 'Full name is required' });
+    if (!username || !username.trim()) return res.status(400).json({ error: 'Username is required' });
+    if (role && !['admin', 'user'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+
+    const dup = db.exec("SELECT id FROM users WHERE username = ? AND id != ?", [username.trim(), id]);
+    if (dup.length && dup[0].values.length > 0) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    db.run(
+      "UPDATE users SET full_name = ?, username = ?, role = ?, campaign = ? WHERE id = ?",
+      [full_name.trim(), username.trim(), role || 'user', campaign || '', id]
+    );
+    saveDatabase();
+    res.json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Assign a user to a campaign + optional bucket (uses campaign_config ids)
+app.put('/api/users/:id/assignment', requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { campaign_id, bucket_id } = req.body;
+    const db = getDatabase();
+
+    const user = db.exec("SELECT id FROM users WHERE id = ?", [id]);
+    if (!user.length || user[0].values.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    let campaignValue = '';
+    let assignmentId = null;
+
+    if (campaign_id) {
+      const camp = db.exec("SELECT id, name FROM campaign_config WHERE id = ?", [campaign_id]);
+      if (!camp.length || camp[0].values.length === 0) {
+        return res.status(400).json({ error: 'Campaign not found' });
+      }
+      campaignValue = camp[0].values[0][1];
+
+      if (bucket_id) {
+        const bucket = db.exec("SELECT id FROM campaign_buckets WHERE id = ? AND campaign_id = ?", [bucket_id, campaign_id]);
+        if (!bucket.length || bucket[0].values.length === 0) {
+          return res.status(400).json({ error: 'Bucket does not belong to this campaign' });
+        }
+      }
+
+      // Keep campaign_assignments in sync (used by Campaigns & Columns page)
+      const assignment = db.exec(
+        "SELECT id FROM campaign_assignments WHERE campaign_id = ? AND user_id = ?",
+        [campaign_id, id]
+      );
+      if (assignment.length && assignment[0].values.length > 0) {
+        assignmentId = assignment[0].values[0][0];
+        db.run("UPDATE campaign_assignments SET bucket_id = ? WHERE id = ?", [bucket_id || null, assignmentId]);
+      } else {
+        db.run(
+          "INSERT INTO campaign_assignments (campaign_id, user_id, bucket_id) VALUES (?, ?, ?)",
+          [campaign_id, id, bucket_id || null]
+        );
+        assignmentId = db.exec("SELECT last_insert_rowid()")[0].values[0][0];
+      }
+
+      // Remove assignments to other campaigns — a user belongs to one campaign
+      db.run("DELETE FROM campaign_assignments WHERE user_id = ? AND id != ?", [id, assignmentId]);
+    } else {
+      // No campaign selected — clear all assignments
+      db.run("DELETE FROM campaign_assignments WHERE user_id = ?", [id]);
+    }
+
+    db.run("UPDATE users SET campaign = ? WHERE id = ?", [campaignValue, id]);
+    saveDatabase();
+    res.json({ message: 'Assignment updated successfully' });
+  } catch (error) {
+    console.error('Update assignment error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
