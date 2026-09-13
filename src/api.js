@@ -49,18 +49,31 @@ export const logout = () =>
 export const getMe = () =>
   request('/auth/me');
 
-// PTP Records
-export const getRecords = () =>
-  request('/records');
+// Global columns (admin-defined table columns)
+export const getColumns = () =>
+  request('/columns');
 
-export const createRecord = (data) =>
-  request('/records', { method: 'POST', body: data });
+export const createColumn = (data) =>
+  request('/columns', { method: 'POST', body: data });
 
-export const updateRecord = (id, data) =>
-  request(`/records/${id}`, { method: 'PUT', body: data });
+export const updateColumn = (id, data) =>
+  request(`/columns/${id}`, { method: 'PUT', body: data });
 
-export const deleteRecord = (id) =>
-  request(`/records/${id}`, { method: 'DELETE' });
+export const deleteColumn = (id) =>
+  request(`/columns/${id}`, { method: 'DELETE' });
+
+// Records (schema-less: values keyed by column id)
+export const getRecords = (type) =>
+  request(`/records/${type}`);
+
+export const createRecord = (type, data) =>
+  request(`/records/${type}`, { method: 'POST', body: data });
+
+export const updateRecord = (type, id, data) =>
+  request(`/records/${type}/${id}`, { method: 'PUT', body: data });
+
+export const deleteRecord = (type, id) =>
+  request(`/records/${type}/${id}`, { method: 'DELETE' });
 
 // Users (Admin)
 export const getUsers = () =>
@@ -81,24 +94,35 @@ export const updateUserCampaign = (id, campaign) =>
 export const changePassword = (id, password) =>
   request(`/users/${id}/password`, { method: 'PUT', body: { password } });
 
-// Campaign-scoped records (Admin)
-export const getCampaignRecords = (campaign) =>
-  request(`/campaign/${encodeURIComponent(campaign)}/records`);
 
-// Confirmed Records
-export const getConfirmedRecords = () =>
-  request('/confirmed');
 
-export const createConfirmedRecord = (data) =>
-  request('/confirmed', { method: 'POST', body: data });
+// Campaigns & Columns configuration
+export const getCampaignsConfig = () =>
+  request('/campaigns-config');
 
-export const updateConfirmedRecord = (id, data) =>
-  request(`/confirmed/${id}`, { method: 'PUT', body: data });
+export const createCampaign = (name) =>
+  request('/campaigns-config', { method: 'POST', body: { name } });
 
-export const deleteConfirmedRecord = (id) =>
-  request(`/confirmed/${id}`, { method: 'DELETE' });
+export const updateCampaign = (id, name) =>
+  request(`/campaigns-config/${id}`, { method: 'PUT', body: { name } });
 
-export const getCampaignConfirmedRecords = (campaign) =>
-  request(`/campaign/${encodeURIComponent(campaign)}/confirmed`);
+export const deleteCampaign = (id) =>
+  request(`/campaigns-config/${id}`, { method: 'DELETE' });
+
+export const addBucket = (campaignId, name) =>
+  request(`/campaigns-config/${campaignId}/buckets`, { method: 'POST', body: { name } });
+
+export const updateBucket = (id, name) =>
+  request(`/buckets/${id}`, { method: 'PUT', body: { name } });
+
+export const deleteBucket = (id) =>
+  request(`/buckets/${id}`, { method: 'DELETE' });
+
+
+
+export const updateAssignments = (campaignId, assignments) =>
+  request(`/campaigns-config/${campaignId}/assignments`, { method: 'PUT', body: { assignments } });
+
+
 
 // Admin monitoring - export existing functions for use

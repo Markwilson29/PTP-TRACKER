@@ -1,6 +1,8 @@
 // Shared sidebar layout for authenticated pages
 import { logout } from './api.js';
 
+const ADMIN_LABELS = ['Campaigns & Columns', 'Users & Agents', 'Admin Panel'];
+
 export class Layout {
   constructor(app, sidebarItems) {
     this.app = app;
@@ -13,6 +15,9 @@ export class Layout {
 
     // Check if sidebar was previously closed
     const sidebarClosed = localStorage.getItem('sidebarClosed') === 'true';
+
+    const mainItems = this.sidebarItems.filter((i) => !ADMIN_LABELS.includes(i.label));
+    const adminItems = this.sidebarItems.filter((i) => ADMIN_LABELS.includes(i.label));
 
     container.innerHTML = `
       <!-- Sidebar Toggle Button (always visible) -->
@@ -27,27 +32,27 @@ export class Layout {
         <!-- Sidebar Header -->
         <div class="p-5 border-b border-slate-700">
           <div class="flex items-center gap-3">
-            <div class="flex items-center justify-center w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex-shrink-0 shadow-lg shadow-blue-500/30">
+            <div class="flex items-center justify-center w-11 h-11 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex-shrink-0 shadow-lg shadow-indigo-500/30">
               <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
               </svg>
             </div>
             <div>
-              <h2 class="text-lg font-bold text-white">CIMB Account</h2>
-              <p class="text-xs text-slate-400">Monitoring</p>
+              <h2 class="text-lg font-bold text-white">PTP Monitoring</h2>
+              <p class="text-xs text-slate-400">Promise to Pay</p>
             </div>
           </div>
         </div>
 
         <!-- Navigation -->
         <nav class="flex-1 p-4">
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">Navigation</p>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">Main</p>
           <ul class="space-y-1">
-            ${this.sidebarItems.map(item => `
+            ${mainItems.map(item => `
               <li class="sidebar-item" data-path="${item.path}">
                 <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 justify-between
                   ${item.active
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
                     : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'}">
                   <span class="flex items-center gap-3 flex-1">
                     ${item.icon ? `<span class="w-5 h-5 flex items-center justify-center">${item.icon}</span>` : ''}
@@ -58,6 +63,25 @@ export class Layout {
               </li>
             `).join('')}
           </ul>
+          ${adminItems.length ? `
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 mt-6 px-3">Administration</p>
+          <ul class="space-y-1">
+            ${adminItems.map(item => `
+              <li class="sidebar-item" data-path="${item.path}">
+                <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 justify-between
+                  ${item.active
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'}">
+                  <span class="flex items-center gap-3 flex-1">
+                    ${item.icon ? `<span class="w-5 h-5 flex items-center justify-center">${item.icon}</span>` : ''}
+                    <span>${item.label}</span>
+                  </span>
+                  ${item.active ? '<svg class="w-4 h-4 text-white/80 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>' : '<span class="w-4 h-4 flex-shrink-0"></span>'}
+                </button>
+              </li>
+            `).join('')}
+          </ul>
+          ` : ''}
         </nav>
 
         <!-- User Profile & Logout -->

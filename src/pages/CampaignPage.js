@@ -1,4 +1,5 @@
-import { getCampaignUsers, getCampaignRecords, logout } from '../api.js';
+import { getCampaignUsers, getRecords, logout } from '../api.js';
+import { loadTableColumns, columnsForTable, formatValue, escapeAttr } from '../dynamic-columns.js';
 
 export class CampaignPage {
   constructor(app, campaign) {
@@ -95,13 +96,8 @@ export class CampaignPage {
             <div class="overflow-x-auto">
               <table class="w-full">
                 <thead>
-                  <tr class="bg-gray-50 border-b border-gray-200">
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contact Date</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Agent Name</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loan Number</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">PTP Date</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">PTP Amount</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Remarks</th>
+                  <tr id="campaignRecordsHeadRow" class="bg-gray-50 border-b border-gray-200">
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loading…</th>
                   </tr>
                 </thead>
                 <tbody id="campaignRecordsTableBody" class="divide-y divide-gray-100">
@@ -216,8 +212,9 @@ export class CampaignPage {
 
   async loadRecords(container) {
     try {
-      const data = await getCampaignRecords(this.campaign);
-      this.records = data.records;
+      const [data, allCols] = await Promise.all([getRecords('ptp'), loadTableColumns()]);
+      this.records = data.records.filter((r) => (r.campaign || '').startsWith(this.campaign));
+      this.columns = columnsForTable(allCols, 'ptp');
       this.renderRecordsTable(container, this.records);
       container.querySelector('#recordCount').textContent =
         `${this.records.length} record${this.records.length === 1 ? '' : 's'}`;
@@ -235,11 +232,17 @@ export class CampaignPage {
 
   renderRecordsTable(container, records) {
     const tbody = container.querySelector('#campaignRecordsTableBody');
+    const theadRow = container.querySelector('#campaignRecordsHeadRow');
+
+    theadRow.innerHTML = `
+      <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Campaign</th>
+      ${this.columns.map((col) => `<th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">${col.name}</th>`).join('')}
+    `;
 
     if (records.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+          <td colspan="99" class="px-6 py-12 text-center text-gray-500">
             <div class="flex flex-col items-center">
               <svg class="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -257,12 +260,8 @@ export class CampaignPage {
       .map(
         (r) => `
       <tr class="hover:bg-gray-50 transition-colors">
-        <td class="px-6 py-4 text-sm text-gray-800 font-medium">${r.contact_date || '-'}</td>
-        <td class="px-6 py-4 text-sm text-gray-800">${r.agent_name}</td>
-        <td class="px-6 py-4 text-sm text-gray-800 font-mono">${r.loan_number}</td>
-        <td class="px-6 py-4 text-sm text-gray-800 font-medium">${r.ptp_date || '-'}</td>
-        <td class="px-6 py-4 text-sm text-green-700 font-semibold">₱${parseFloat(r.ptp_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-        <td class="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate">${r.remarks || '-'}</td>
+        <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">${r.campaign || '—'}</span></td>
+        ${this.columns.map((col) => `<td class="px-6 py-4">${formatValue(col, (r.values || {})[col.id])}</td>`).join('')}
       </tr>
     `
       )

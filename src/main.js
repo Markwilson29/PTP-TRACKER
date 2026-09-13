@@ -4,6 +4,7 @@ import { DashboardPage } from './pages/DashboardPage.js';
 import { AdminPage } from './pages/AdminPage.js';
 import { CampaignPage } from './pages/CampaignPage.js';
 import { ConfirmedTrackerPage } from './pages/ConfirmedTrackerPage.js';
+import { CampaignsPage } from './pages/CampaignsPage.js';
 
 class App {
   constructor() {
@@ -13,6 +14,7 @@ class App {
       '/login': () => this.renderLogin(),
       '/dashboard': () => this.renderDashboard(),
       '/admin': () => this.renderAdmin(),
+      '/campaigns': () => this.renderCampaigns(),
       '/confirmed': () => this.renderConfirmed(),
       '/campaign/:campaign': () => this.renderCampaign(),
     };
@@ -96,6 +98,17 @@ class App {
     const app = document.getElementById('app');
     app.innerHTML = '';
     const page = new AdminPage(this);
+    app.appendChild(page.render());
+  }
+
+  renderCampaigns() {
+    if (!this.currentUser || this.currentUser.role !== 'admin') {
+      this.navigate('/dashboard');
+      return;
+    }
+    const app = document.getElementById('app');
+    app.innerHTML = '';
+    const page = new CampaignsPage(this);
     app.appendChild(page.render());
   }
 
