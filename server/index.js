@@ -288,7 +288,7 @@ app.post('/api/records/:type', requireAuth, (req, res) => {
     if (campaign && !canAccessCampaign(req.session.user, campaign)) {
       return res.status(403).json({ error: 'You can only create records for your assigned campaign' });
     }
-    (void) campaign;
+    // (void) campaign;
 
     const db = getDatabase();
 
